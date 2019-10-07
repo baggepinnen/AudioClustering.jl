@@ -27,16 +27,32 @@ using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, LowRankModels
 # Lazy.@forward AdjacencyMatrix.M (Base.length, Base.getindex, Base.setindex!, Base.size, Base.enumerate, LinearAlgebra.eigen, LinearAlgebra.eigvals, LinearAlgebra.svd, LinearAlgebra.qr, Arpack.eigs)
 
 
-function mapsoundfiles(f::F,files,windowlength, extension=nothing) where F
+"""
+    mapsoundfiles(f::F, files, windowlength) where F
+
+map a Function over a list of wav files.
+
+#Arguments:
+- `f`: a Function
+- `files`: DESCRIPTION
+- `windowlength`: DESCRIPTION
+"""
+function mapsoundfiles(f::F,files,windowlength) where F
     GC.gc()
-    extension === nothing || (files = filter(f->splitext(f)[end] == extension, files))
+    # extension === nothing || (files = filter(f->splitext(f)[end] == extension, files))
     @time embeddings = tmap(2nthreads(),files) do file
         @info "Reading file $file"
         sound = wavread(file)[1]
         map(f,Iterators.partition(sound, windowlength))
     end
 end
-function model2file(model, files)
+
+"""
+    model2file(model, models, files)
+
+Finds the file corresponding to the model
+"""
+function model2file(model, models, files)
     findres = findfirst.(==(model), models)
     fileno = findfirst(!=(nothing), findres)
     files[fileno]
@@ -60,6 +76,18 @@ function NearestNeighbors.knn(X::AbstractMatrix,k::Int)
     inds, dists = knn(tree, X, k)
 end
 
+"""
+    audiograph(X::AbstractMatrix, k::Int, distance, models::Vector{<:SpectralDistances.AbstractModel}; λ=0)
+
+DOCSTRING
+
+#Arguments:
+- `X`: The data matrix, size n_feature × n_data
+- `k`: number of neighbors
+- `distance`: DESCRIPTION
+- `models`: DESCRIPTION
+- `λ`: Kernel precision. Higher value means tighter kernel.
+"""
 function audiograph(X::AbstractMatrix, k::Int, distance, models::Vector{<:SpectralDistances.AbstractModel}; λ=0)
     inds, _ = knn(X, k)
     N = length(inds)
@@ -73,6 +101,16 @@ function audiograph(X::AbstractMatrix, k::Int, distance, models::Vector{<:Spectr
                     λ == 0 ? reduce(vcat, dists) : exp.(.-λ .*reduce(vcat, dists)))
 end
 
+"""
+    audiograph(X::AbstractMatrix, k::Int=5; λ=0)
+
+DOCSTRING
+
+#Arguments:
+- `X`: The data matrix, size n_feature × n_data
+- `k`: number of neighbors
+- `λ`: Kernel precision. Higher value means tighter kernel.
+"""
 function audiograph(X::AbstractMatrix,k::Int=5; λ=0)
     inds, dists = knn(X, k)
     A = _nn2graph(inds, dists, λ)
@@ -81,6 +119,15 @@ end
 
 save_interesting(files, inds, args...) = save_interesting(files, findall(inds), args...)
 
+"""
+    save_interesting(files::Vector{String}, inds::Vector{Int}, contextwindow=1)
+
+DOCSTRING
+
+#Arguments:
+- `inds`: A list of interesting sound clips
+- `contextwindow`: Saves this many clips before and after
+"""
 function save_interesting(files, inds::Vector{Int}, contextwindow=1)
     tempdir = mktempdir()
     error("This should work on wavfiles instead")
@@ -98,5 +145,26 @@ function save_interesting(files, inds::Vector{Int}, contextwindow=1)
     end
 end
 
+"""
+    U,V,convergence_history = lowrankmodel(X, k=size(X, 1) - 4; λ=1.0e-5)
+
+Fit a low-rank model `X ≈ U'V`.
+`U` will be the dictionary and `V` the activations. Try `heatmap(V)` and see if you can spot any patterns.
+
+#Arguments:
+- `X`: The data matrix, size n_feature × n_data
+- `k`: number of features
+- `λ`: Regularization parameter, higher number yields sparser result
+"""
+function lowrankmodel(X, k=size(X,1)-4; λ=0.00001)
+    losses = QuadLoss() # minimize squared distance to cluster centroids
+    rx     = OneReg(λ)
+    ry     = QuadReg(0.01)
+    glrm   = GLRM(X,losses,ry,rx,k, offset=true, scale=false)
+    init_svd!(glrm)
+    U,V,ch = fit!(glrm, ProxGradParams(1.0,max_iter=50,inner_iter=1,abs_tol=0.00001,rel_tol=0.0001))
+    @info "Relative error: $(mean(abs2,X - U'V)/mean(abs2,X))"
+    U,V,ch
+end
 
 end # module
