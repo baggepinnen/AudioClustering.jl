@@ -3,6 +3,12 @@ using LinearAlgebra, Statistics, Base.Threads
 using DelimitedFiles, Reexport, ThreadTools, Lazy
 using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, LowRankModels
 
+using Makie, AbstractPlotting, Observables
+
+
+export mapsoundfiles, audiograph, lowrankmodel, model2file, save_interesting
+export interactive_heatmap
+
 @reexport using DSP
 @reexport using SpectralDistances
 @reexport using Distances
@@ -57,10 +63,15 @@ function model2file(model, models, files)
     fileno = findfirst(!=(nothing), findres)
     files[fileno]
 end
+
 function WAV.wavplay(x::AbstractArray,fs)
     path = "/tmp/a.wav"
     wavwrite(x,path,Fs=fs)
     @info "Wrote to file $path"
+    Threads.@spawn run(`totem $path`)
+end
+
+function WAV.wavplay(path::String)
     Threads.@spawn run(`totem $path`)
 end
 
@@ -166,5 +177,9 @@ function lowrankmodel(X, k=size(X,1)-4; λ=0.00001)
     @info "Relative error: $(mean(abs2,X - U'V)/mean(abs2,X))"
     U,V,ch
 end
+
+
+include("plotting.jl")
+
 
 end # module
