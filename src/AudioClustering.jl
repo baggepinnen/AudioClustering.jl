@@ -6,7 +6,7 @@ using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, LowRankModels
 using Makie, AbstractPlotting, Observables
 
 
-export mapsoundfiles, audiograph, lowrankmodel, model2file, save_interesting
+export mapsoundfiles, audiograph, lowrankmodel, model2file, save_interesting, embeddings
 export interactive_heatmap
 
 @reexport using DSP
@@ -46,7 +46,7 @@ map a Function over a list of wav files.
 function mapsoundfiles(f::F,files,windowlength) where F
     GC.gc()
     # extension === nothing || (files = filter(f->splitext(f)[end] == extension, files))
-    @time embeddings = tmap(2nthreads(),files) do file
+    @time embeddings = tmap1(max(nthreads()-1,1),files) do file
         @info "Reading file $file"
         sound = wavread(file)[1]
         map(f,Iterators.partition(sound, windowlength))
@@ -128,33 +128,58 @@ function audiograph(X::AbstractMatrix,k::Int=5; λ=0)
 end
 
 
-save_interesting(files, inds, args...) = save_interesting(files, findall(inds), args...)
+save_interesting(sounds, inds, args...) = save_interesting(sounds, findall(inds), args...)
 
 """
-    save_interesting(files::Vector{String}, inds::Vector{Int}, contextwindow=1)
+    save_interesting(sounds::Vector, inds::Vector{Int}, contextwindow=1)
 
-DOCSTRING
+Saves interesting wav files to disk, together with one concatenated file which contains all the itneresting sounds. The paths will be printed in the terminal.
 
 #Arguments:
-- `inds`: A list of interesting sound clips
+- `inds`: A list of indices to interesting sound clips
 - `contextwindow`: Saves this many clips before and after
 """
-function save_interesting(files, inds::Vector{Int}, contextwindow=1)
+function save_interesting(sounds::AbstractVector{T}, inds::Vector{Int}, contextwindow=1, fs=41000) where T
     tempdir = mktempdir()
-    error("This should work on wavfiles instead")
     for ind ∈ inds
-        extended_inds = max(1, ind-contextwindow):min(length(files), ind+contextwindow)
+        extended_inds = max(1, ind-contextwindow):min(length(sounds), ind+contextwindow)
         sound = map(extended_inds) do i
-            deserialize(files[i])
+            getsound(sounds[i])
         end
         sound = reduce(vcat, sound)[:]
-        tempfile = joinpath(tempdir, splitpath(files[ind])[end]*".wav")
+        filename = T <: AbstractString ? splitpath(files[ind])[end] : string(ind)
+        tempfile = joinpath(tempdir, filename*".wav")
         sound .-= mean(Float32.(sound))
         sound .*= 1/maximum(abs.(sound))
         wavwrite(sound, tempfile, Fs=fs)
         println(tempfile)
     end
+    save_interesting_concat(sounds, inds, tempdir, fs=fs)
 end
+
+getsound(sound) = sound
+function getsound(sound::AbstractString)
+    ext = splitext(sound)[2]
+    if ext == "wav"
+        wavread(sound)
+    else
+        deserialize(sound)
+    end
+end
+
+function save_interesting_concat(sounds, inds::Vector{Int}, tempdir=mktempdir(); fs=41000)
+    sound = map(inds) do i
+        sound = getsound(sounds[i])
+        sound .-= mean(Float32.(sound))
+        sound .*= 1/maximum(abs.(sound))
+    end
+    sound = reduce(vcat, sound)[:]
+    tempfile = joinpath(tempdir, "concatenated.wav")
+    wavwrite(sound, tempfile, Fs=fs)
+    println(tempfile)
+    tempdir
+end
+
 
 """
     U,V,convergence_history = lowrankmodel(X, k=size(X, 1) - 4; λ=1.0e-5)
@@ -180,6 +205,64 @@ end
 
 
 include("plotting.jl")
+
+"""
+    embeddings(models::AbstractVector{<:AbstractModel})
+
+Returns an embedding matrix that contains poles of the system models, expanded into real and imaginary parts. Redundant poles (complex conjugates) are removed, so the height of the embedding matrix is the same as the number of poles in the system models.
+"""
+function embeddings(models::AbstractVector{<: AbstractModel})
+    emb = ContinuousRoots.(move_real_poles.(roots.(Ref(Discrete()), models), 1e-2))
+    X0 = reduce(hcat, emb)
+    X = Float64.([real(X0[1:end÷2,:]); imag(X0[1:end÷2,:])])
+end
+
+
+
+
+import MLJBase
+
+Base.@kwdef mutable struct SparseLowRank <: MLJBase.Unsupervised
+    k::Int
+    λx::Float64 = 0.01
+    λy::Float64 = 0.01
+end
+
+# fit returns coefficients minimizing a penalized rms loss function:
+function MLJBase.fit(model::SparseLowRank, verbosity::Int, X)
+    x = MLJBase.matrix(X)                     # convert table to matrix
+    losses = QuadLoss()
+    rx = NonNegOneReg(model.λx)
+    ry = QuadReg(model.λy)
+    glrm = GLRM(X,losses,ry,rx,model.k, offset=true, scale=true)
+    init_svd!(glrm)
+    U,V,ch = fit!(glrm, ProxGradParams(1.0,max_iter=1000,inner_iter=1,abs_tol=1e-9,rel_tol=1e-9), verbosity=verbosity)
+    (U,V,glrm), 0, ch
+end
+
+# predict uses coefficients to make new prediction:
+function MLJBase.transform(model::SparseLowRank, fitresult, X)
+    U,V,glrm = fitresult
+    x = MLJBase.matrix(X)                     # convert table to matrix
+    losses = QuadLoss()
+    m2 = deepcopy(glrm)
+    m2.X .= U
+    U,V,ch = fit(glrm, ProxGradParams(1.0,max_iter=1000,inner_iter=1,abs_tol=1e-9,rel_tol=1e-9))
+    V
+end
+
+function MLJBase.inverse_transform(::SparseLowRank, fitresult, Xnew)
+    fitresult[1]' * MLJBase.matrix(Xnew)
+end
+
+
+
+
+
+
+
+
+
 
 
 end # module

@@ -2,11 +2,12 @@
 [![codecov](https://codecov.io/gh/baggepinnen/AudioClustering.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/AudioClustering.jl)
 
 # AudioClustering
+This package contains experiments and utilities for unsupervised learning on acoustic recordings. This package is a use case of [SpectralDistances.jl](https://github.com/baggepinnen/SpectralDistances.jl)
 
 # Examples
 
 ## Estimating linear models
-The following code illustrates how to use SpectralDistances.jl to fit rational spectra to audio samples and extract the poles for use as features
+The following code illustrates how to use [SpectralDistances.jl](https://github.com/baggepinnen/SpectralDistances.jl) to fit rational spectra to audio samples and extract the poles for use as features
 ```julia
 using SpectralDistances, Glob
 path      = "/home/fredrikb/birds/" # path to a bunch of wav files
@@ -14,10 +15,10 @@ cd(path)
 files     = glob("*.wav")
 const fs  = 44100
 na        = 30
-fitmethod = LS(na=na, λ=1e-5)
+fitmethod = TLS(na=na)
 
 models    = mapsoundfiles(files) do sound
-     sound = SpectralDistances.bp_filter(sound, (50/fs, 18000/fs)) |> diff |> diff
+     sound = SpectralDistances.bp_filter(sound, (50/fs, 18000/fs))
      SpectralDistances.fitmodel(fitmethod, sound)
 end
 ```

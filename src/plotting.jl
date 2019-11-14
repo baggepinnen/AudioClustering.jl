@@ -1,3 +1,8 @@
+"""
+    interactive_heatmap(data, sounds::Vector{SomethingPlayable})
+
+Plots a heatmap where each cell is clickable. Clicking a cell causes the sound corresponding to the cell to be played. The vector of sounds can be either a vector of vectors, or a vector of file paths (basically anything that one can call `wavplay` on).
+"""
 function interactive_heatmap(data, filesv)
     data = data'
     limits = Makie.FRect(1,1,size(data)...)
