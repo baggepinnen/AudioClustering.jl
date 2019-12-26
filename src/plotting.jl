@@ -17,3 +17,19 @@ function interactive_heatmap(data, filesv)
     end
     scene
 end
+
+
+function interactive_scatter(X, Y, filesv; kwargs...)
+    tree = NearestNeighbors.KDTree([X'; Y'])
+    # limits = Makie.FRect(1,1,size(data)...)
+    scene = Makie.scatter(X,Y; kwargs...)
+    on(scene.events.mousebuttons) do val
+        AbstractPlotting.Mouse.left ∈ val || return
+        x,y = Makie.mouseposition(scene)
+        ind, _ = knn(tree, [x,y], 1)
+        file = filesv[ind[]]
+        @info "playing file $file at position $x"
+        wavplay(file)
+    end
+    scene
+end
