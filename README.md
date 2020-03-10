@@ -14,8 +14,8 @@ path      = "/home/fredrikb/birds/" # path to a bunch of wav files
 cd(path)
 files     = glob("*.wav")
 const fs  = 44100
-na        = 30
-fitmethod = TLS(na=na)
+na        = 20
+fitmethod = LS(na=na)
 
 models    = mapsoundfiles(files) do sound
      sound = SpectralDistances.bp_filter(sound, (50/fs, 18000/fs))
@@ -24,9 +24,7 @@ end
 ```
 We now have a vector of vectors with linear models fit to the sound files. To make this easier to work with, we flatten this structure to a single long vector and extract the poles (roots) of the linear systems to use as features
 ```julia
-modelsv = reduce(vcat, models)
-X0      = reduce(hcat, (roots.(modelsv)))
-X       = [real(X0); imag(X0)]
+X = embeddings(models)
 ```
 
 We now have some audio data, represented as poles of rational spectra, in a matrix `X`
@@ -63,7 +61,7 @@ G = audiograph(X, 5; λ=0)
 ```
 where `k=5` is the number of nearest neighbors considered when building the graph. If `λ=0` the graph will be weighted by distance, whereas if  `λ>0` the graph will be weigted according to adjacency under the kernel `exp(-λ*d)`. The metric used is the Euclidean distance. If you want to use a more sophisticated distance, try, e.g.,
 ```julia
-dist = ClosedFormSpectralDistance(domain=Discrete(), p=1)
+dist = SinkhornRootDistance(domain=Continuous(), p=2)
 G = audiograph(X, 5, dist; λ=0)
 ```
 Here, the Euclidean distance will be used to select neighbors, but the edges will be weighted using the provided distance. This avoids having to calculate a very large number of pairwise distances using the more expensive distance metric.
