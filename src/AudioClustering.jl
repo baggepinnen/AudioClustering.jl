@@ -105,8 +105,8 @@ Return a permutation between cluster assignments and true (supervised) labels su
 """
 function associate_clusters(labels::Vector{Int}, assignments::Vector{Int})
     ulabels = sort(unique(labels))
-    D = [sum((labels .== i) .& (assignments .!= j)) for i in ulabels, j in ulabels]
-    perm = hungarian(D)[1]
+    D = [(sum((labels .!= i) .& (assignments .== j))) for i in ulabels, j in ulabels]
+    perm = hungarian(D')[1]
     replace(assignments, Pair.(ulabels,perm)...), perm
 end
 
