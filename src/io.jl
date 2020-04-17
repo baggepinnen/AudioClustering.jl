@@ -58,7 +58,7 @@ save_interesting(sounds, inds, args...) = save_interesting(sounds, findall(inds)
 
 Saves interesting wav files to disk, together with one concatenated file which contains all the itneresting sounds. The paths will be printed in the terminal.
 
-#Arguments:
+# Arguments:
 - `inds`: A list of indices to interesting sound clips
 - `contextwindow`: Saves this many clips before and after
 """

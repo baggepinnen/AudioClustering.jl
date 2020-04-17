@@ -27,8 +27,25 @@ We now have a vector of vectors with linear models fit to the sound files. To ma
 X = embeddings(models)
 ```
 
-We now have some audio data, represented as poles of rational spectra, in a matrix `X`
-## Low-rank model
+We now have some audio data, represented as poles of rational spectra, in a matrix `X`. See https://baggepinnen.github.io/SpectralDistances.jl/latest/examples/#Examples-1 for examples of how to use this matrix for analysis of the signals, e.g., classification, clustering and detection.
+
+
+## Graph-based clustering
+A graph representation of `X` can be obtained with
+```julia
+G = audiograph(X, 5; λ=0)
+```
+where `k=5` is the number of nearest neighbors considered when building the graph. If `λ=0` the graph will be weighted by distance, whereas if  `λ>0` the graph will be weigted according to adjacency under the kernel `exp(-λ*d)`. The metric used is the Euclidean distance. If you want to use a more sophisticated distance, try, e.g.,
+```julia
+dist = OptimalTransportRootDistance(domain=Continuous(), p=2)
+G = audiograph(X, 5, dist; λ=0)
+```
+Here, the Euclidean distance will be used to select neighbors, but the edges will be weighted using the provided distance. This avoids having to calculate a very large number of pairwise distances using the more expensive distance metric.
+
+Any graph-based algorithm may now operate on `G`, or on the field `G.weight`. Further examples are available [here](https://baggepinnen.github.io/SpectralDistances.jl/latest/examples/#Pairwise-distance-matrix-1).
+
+
+<!-- ## Low-rank model
 To derive some insights into the data, we may attempt to fit a low-rank model. I have chosen some (hopefully) resonable defaults in the function `lowrankmodel`, but more control can always be recovered by using [LowRankModels.jl](https://github.com/madeleineudell/LowRankModels.jl) directly.
 ```julia
 using AudioClustering
@@ -52,18 +69,4 @@ ind = findmax(V[35,:])[2]
 file = AudioClustering.model2file(modelsv[ind], models, files)
 wavplay(file)
 ```
-(it sounds funny)
-
-## Graph-based clustering
-A graph representation of `X` can be obtained with
-```julia
-G = audiograph(X, 5; λ=0)
-```
-where `k=5` is the number of nearest neighbors considered when building the graph. If `λ=0` the graph will be weighted by distance, whereas if  `λ>0` the graph will be weigted according to adjacency under the kernel `exp(-λ*d)`. The metric used is the Euclidean distance. If you want to use a more sophisticated distance, try, e.g.,
-```julia
-dist = SinkhornRootDistance(domain=Continuous(), p=2)
-G = audiograph(X, 5, dist; λ=0)
-```
-Here, the Euclidean distance will be used to select neighbors, but the edges will be weighted using the provided distance. This avoids having to calculate a very large number of pairwise distances using the more expensive distance metric.
-
-Any graph-based algorithm may now operate on `G`, or on the field `G.weight`.
+(it sounds funny) -->

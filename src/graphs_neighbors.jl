@@ -23,7 +23,7 @@ function distmat2nn_graph(D, k::Int, distance=!all(diag(D) .== 1))
     k += 1
     N = size(D,1)
     G = spzeros(size(D)...)
-    for i = 1:N
+    @inbounds for i = 1:N
         d = sortperm(D[:,i], rev=!distance)
         for j = 2:k
             if distance
