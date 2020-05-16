@@ -3,7 +3,7 @@ Stuff you can do:
 $(EXPORTS)
 - `mapsoundfiles`
 - `audiograph`
-- `model2file`
+- `thing2file`
 - `save_interesting`
 - `embeddings`
 - `interactive_heatmap`
@@ -21,6 +21,7 @@ using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, Hungarian
 export mapsoundfiles, audiograph, model2file, save_interesting, embeddings, invembeddings, invembedding, associate_clusters, distmat2similarity, distmat2nn_graph
 export interactive_heatmap
 
+@reexport using DetectionIoTools
 @reexport using DSP
 @reexport using SpectralDistances
 @reexport using Distances
@@ -47,7 +48,6 @@ export interactive_heatmap
 
 
 include("graphs_neighbors.jl")
-include("io.jl")
 include("plotting.jl")
 
 """

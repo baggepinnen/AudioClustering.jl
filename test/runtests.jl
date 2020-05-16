@@ -75,14 +75,7 @@ using SpectralDistances, Random, DSP
         g = audiograph(V, N_clusters)
         # heatmap(g.weights)
 
-        @testset "Save interesting" begin
-            @info "Testing Save interesting"
 
-
-            sounddir = AudioClustering.save_interesting(allsounds, [1,3])
-            @test walkdir(sounddir) |> first |> last |> length == 3
-
-        end
 
     end
 

@@ -4,6 +4,14 @@
 # AudioClustering
 This package contains experiments and utilities for unsupervised learning on acoustic recordings. This package is a use case of [SpectralDistances.jl](https://github.com/baggepinnen/SpectralDistances.jl)
 
+## Installation
+
+```julia
+using Pkg
+pkg"add https://github.com/baggepinnen/DetectionIoTools.jl"
+pkg"add https://github.com/baggepinnen/AudioClustering.jl"
+```
+
 # Examples
 
 ## Estimating linear models
