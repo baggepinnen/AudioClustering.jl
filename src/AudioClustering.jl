@@ -15,10 +15,10 @@ using LinearAlgebra, Statistics, Base.Threads
 using DelimitedFiles, Reexport, ThreadTools, Lazy
 using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, Hungarian
 
+using AbstractTrees
 
 
-
-export mapsoundfiles, audiograph, model2file, save_interesting, embeddings, invembeddings, invembedding, associate_clusters, distmat2similarity, distmat2nn_graph
+export mapsoundfiles, audiograph, model2file, save_interesting, embeddings, invembeddings, invembedding, associate_clusters, distmat2similarity, distmat2nn_graph, knn, knn_accelerated
 export interactive_heatmap
 
 @reexport using DetectionIoTools
@@ -143,5 +143,116 @@ function __init__()
         end
     end
 end
+
+
+
+## Hierarchical clustering approaches
+
+struct Cluster
+    inds::Vector{Int}
+    level::Int
+end
+
+struct Clusters
+    clusters::Vector{Cluster}
+    clustered_indices::Vector{Int}
+end
+
+struct TopDownResult
+    D::SparseMatrixCSC{Float64, Int}
+    clusters::Clusters
+end
+
+
+AbstractTrees.children(node::Cluster)                      = node.inds
+AbstractTrees.printnode(io::IO, node::Cluster)             = print(io, node.data)
+AbstractTrees.children(node::TopDownResult)                = node.clusters
+Base.eltype(::Type{<:TreeIterator{Cluster}})               = Cluster
+Base.eltype(::Type{<:TreeIterator{TopDownResult}})         = Cluster
+AbstractTrees.nodetype(::Cluster)                          = Cluster
+AbstractTrees.nodetype(::TopDownResult)                    = Cluster
+Base.IteratorEltype(::Type{<:TreeIterator{Cluster}})       = Base.HasEltype()
+Base.IteratorEltype(::Type{<:TreeIterator{TopDownResult}}) = Base.HasEltype()
+
+
+function topdown(d::ConvOptimalTransportDistance, Xi, k; n_init = 100, kwargs...)
+    X  = s1.(normalize_spectrogram(Xi, d.dynamic_floor))
+    N  = length(X)
+    workspaces = [SCWorkspace(X[1], X[1], d.β) for _ in 1:Threads.nthreads()]
+    D = spzeros(N,N)
+
+    # Compute some number of random distances to get some statistics
+    for k = 1:n_init
+        i,j = rand(1:N, 2)
+        D[i,j] == 0 || continue
+        D[i,j] = sinkhorn_convolutional(w, X[i], X[j]; β = d.β, kwargs...)
+        D[j,i] = D[i,j]
+    end
+
+    # Find the smallest computed distance
+    m = minimum(nonzeros(D))
+    i = findfirst(==(m), D) # seed index
+
+    # Compute all distances for one of the members of the nearest-neighbor pair
+    for j = 1:N
+        D[i,j] == 0 || continue
+        D[i,j] = sinkhorn_convolutional(w, X[i], X[j]; β = d.β, kwargs...)
+        D[j,i] = D[i,j]
+    end
+
+    # Group the smallest 1/k quantile into the first cluster.
+    # QUESTION: would it be better to group all within a certain distance relative to the statistics from above
+    perm = partialsortperm(D[:,i], 1:N÷k)
+    clusters = Clusters([Cluster(perm, 1)], perm)
+
+end
+
+
+
+function mutual_neighbors(X, k; verbose=true, kwargs...)
+    m,N  = size(X)
+    if m > 1000 || N < 5000
+        verbose && @info "Computing NN using distance matrix"
+        if N < 10_000
+            D = pairwise(Euclidean(), X)
+            D[diagind(D)] .= Inf
+            dists, inds = findmin(D, dims=2)
+            inds = vec(getindex.(inds, 2))
+        else
+            error("Dimension too large, this will take a long time")
+        end
+    else
+        verbose && @info "Computing NN using KD-tree"
+        inds, dists = knn(X, 2) # TODO: this takes forever for large representations
+        inds, dists = getindex.(inds, 1), getindex.(dists, 1)
+    end
+    # workspaces = [SCWorkspace(X[1], X[1], d.β) for _ in 1:Threads.nthreads()]
+
+    ordered_tuple(a,b) = a < b ? (a,b) : (b,a)
+    mutual_neighbors = Set{Tuple{Int,Int}}()
+    for i in 1:N
+        ni = inds[i]
+        if inds[ni] == i
+            push!(mutual_neighbors, ordered_tuple(i,ni))
+        end
+    end
+    @assert length(mutual_neighbors) > 1 "Failed to find enough pairs of mutual nearest neighbors"
+    [mutual_neighbors...]
+
+end
+
+function SpectralDistances.barycenter(d::ConvOptimalTransportDistance, X::Vector{<:Periodograms.TFR}, inds::Vector{<:Tuple}; kwargs...)
+
+    tmap(inds) do x
+        barycenter(d, X[[x...]]; kwargs...)
+    end
+
+end
+
+
+
+
+
+
 
 end # module
