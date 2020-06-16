@@ -11,9 +11,11 @@ $(EXPORTS)
 """
 module AudioClustering
 using DocStringExtensions
-using LinearAlgebra, Statistics, Base.Threads
+using LinearAlgebra, Statistics, Base.Threads, Printf
 using DelimitedFiles, Reexport, ThreadTools, Lazy
 using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, Hungarian
+
+using Optim
 
 using AbstractTrees
 
@@ -209,38 +211,6 @@ end
 
 
 
-function mutual_neighbors(X, k; verbose=true, kwargs...)
-    m,N  = size(X)
-    if m > 1000 || N < 5000
-        verbose && @info "Computing NN using distance matrix"
-        if N < 10_000
-            D = pairwise(Euclidean(), X)
-            D[diagind(D)] .= Inf
-            dists, inds = findmin(D, dims=2)
-            inds = vec(getindex.(inds, 2))
-        else
-            error("Dimension too large, this will take a long time")
-        end
-    else
-        verbose && @info "Computing NN using KD-tree"
-        inds, dists = knn(X, 2) # TODO: this takes forever for large representations
-        inds, dists = getindex.(inds, 1), getindex.(dists, 1)
-    end
-    # workspaces = [SCWorkspace(X[1], X[1], d.β) for _ in 1:Threads.nthreads()]
-
-    ordered_tuple(a,b) = a < b ? (a,b) : (b,a)
-    mutual_neighbors = Set{Tuple{Int,Int}}()
-    for i in 1:N
-        ni = inds[i]
-        if inds[ni] == i
-            push!(mutual_neighbors, ordered_tuple(i,ni))
-        end
-    end
-    @assert length(mutual_neighbors) > 1 "Failed to find enough pairs of mutual nearest neighbors"
-    [mutual_neighbors...]
-
-end
-
 function SpectralDistances.barycenter(d::ConvOptimalTransportDistance, X::Vector{<:Periodograms.TFR}, inds::Vector{<:Tuple}; kwargs...)
 
     tmap(inds) do x
@@ -252,7 +222,7 @@ end
 
 
 
-
+include("lowrank.jl")
 
 
 end # module
