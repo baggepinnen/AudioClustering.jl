@@ -57,11 +57,19 @@ include("plotting.jl")
 
 Returns an embedding matrix that contains poles of the system models, expanded into real and imaginary parts. Redundant poles (complex conjugates) are removed, so the height of the embedding matrix is the same as the number of poles in the system models.
 """
-function embeddings(models::AbstractVector{<: AbstractModel})
-    emb = ContinuousRoots.(move_real_poles.(roots.(Ref(Discrete()), models), 1e-2))
-    X0 = reduce(hcat, emb)
-    X = Float64.([real(X0[1:end÷2,:]); imag(X0[1:end÷2,:])])
+function embeddings(models::AbstractVector{<:AbstractModel})
+    if (length(models[1])-1) % 2 == 0
+        emb = ContinuousRoots.(move_real_poles.(roots.(Ref(Discrete()), models), 1e-2))
+        X0 = reduce(hcat, emb)
+        X = Float64.([real(X0[1:end÷2,:]); imag(X0[1:end÷2,:])])
+    else
+        emb = ContinuousRoots.(roots.(Ref(Discrete()), models))
+        X0 = reduce(hcat, emb)
+        X = Float64.([real(X0[1:end÷2+1,:]); imag(X0[1:end÷2+1,:])])
+    end
 end
+
+
 
 function invembeddings(embeddings::AbstractMatrix)
     map(invembedding, eachcol(embeddings))
