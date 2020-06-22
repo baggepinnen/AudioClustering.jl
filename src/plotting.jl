@@ -64,4 +64,5 @@ function interactive_scatter(X, Y, data, spectrogram_markers; f=wavplay, kwargs.
         f(file)
     end
     display(scene)
+    scene
 end
