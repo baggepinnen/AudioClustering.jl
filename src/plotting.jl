@@ -7,7 +7,7 @@ function interactive_heatmap(data, filesv, f=wavplay)
     data = data'
     limits = Makie.FRect(1,1,size(data)...)
     scene = Makie.heatmap(data, limits=limits)
-    on(scene.events.mousebuttons) do val
+    Observables.on(scene.events.mousebuttons) do val
         AbstractPlotting.Mouse.left ∈ val || return
         x,y = Makie.mouseposition(scene)
         x = ceil(Int, x)
@@ -19,9 +19,8 @@ function interactive_heatmap(data, filesv, f=wavplay)
 end
 
 
-using AutomaticDocstrings
 """
-    interactive_scatter(X, Y, data, f=wavplay; kwargs...)
+    interactive_scatter(X, Y, data, [spectrogram_markers]; f=wavplay, kwargs...)
 
 Plot a scatter plot where each point can be clicked and `f` is executed on the corresponding entry of `data`.
 
@@ -29,19 +28,40 @@ Plot a scatter plot where each point can be clicked and `f` is executed on the c
 - `X`: x-coordinates
 - `Y`: y-coordinates
 - `data`: a vector of the same length as `x,y` with additional data
+- `spectrogram_markers` This optional vector of matrices can be supplied in order to display a heatmap (spectrogram) as maker. See `SpectralDistances.normalize_spectrogram`.
 - `kwargs`: are sent to `Makie.scatter`
 """
-function interactive_scatter(X, Y, data; kwargs...)
+function interactive_scatter(X, Y, data; f=wavplay, kwargs...)
     tree = NearestNeighbors.KDTree([X'; Y'])
-    # limits = Makie.FRect(1,1,size(data)...)
     scene = Makie.scatter(X,Y; kwargs...)
-    on(scene.events.mousebuttons) do val
+    Observables.on(scene.events.mousebuttons) do val
         AbstractPlotting.Mouse.left ∈ val || return
         x,y = Makie.mouseposition(scene)
         ind, _ = knn(tree, [x,y], 1)
         file = data[ind[]]
-        @info "playing file $file at position $x"
+        @info "playing file $file at position $x, $y"
         f(file)
     end
     scene
+end
+
+
+function interactive_scatter(X, Y, data, spectrogram_markers; f=wavplay, kwargs...)
+
+    specX = [(p=m; Gray.(Float32.((p .- minimum(p)) ./ (maximum(p)-minimum(p))))) for m in spectrogram_markers]
+    # specX = [(p=m; Gray.(Float32.(p))) for m in spectrogram_markers]
+    tree = NearestNeighbors.KDTree([X'; Y'])
+    scene = Makie.Scene(resolution=(1600, 1000))
+    for inds in Iterators.partition(1:length(X), 400)
+        Makie.scatter!(scene, X[inds],Y[inds]; marker=specX[inds], kwargs...)
+    end
+    Observables.on(scene.events.mousebuttons) do val
+        AbstractPlotting.Mouse.left ∈ val || return
+        x,y = Makie.mouseposition(scene)
+        ind, _ = knn(tree, [x,y], 1)
+        file = data[ind[]]
+        @info "playing file $file at position $x, $y"
+        f(file)
+    end
+    display(scene)
 end
