@@ -30,6 +30,8 @@ Plot a scatter plot where each point can be clicked and `f` is executed on the c
 - `data`: a vector of the same length as `x,y` with additional data
 - `spectrogram_markers` This optional vector of matrices can be supplied in order to display a heatmap (spectrogram) as maker. See `SpectralDistances.normalize_spectrogram`.
 - `kwargs`: are sent to `Makie.scatter`
+
+If markers are invisible when supplying `spectrogram_markers`, try setting the keyword argument `partition_size` to a number smaller than 400, which is the default.
 """
 function interactive_scatter(X, Y, data; f=wavplay, kwargs...)
     tree = NearestNeighbors.KDTree([X'; Y'])
@@ -46,13 +48,13 @@ function interactive_scatter(X, Y, data; f=wavplay, kwargs...)
 end
 
 
-function interactive_scatter(X, Y, data, spectrogram_markers; f=wavplay, kwargs...)
+function interactive_scatter(X, Y, data, spectrogram_markers; f=wavplay, partition_size = 400, kwargs...)
 
     specX = [(p=m; Gray.(Float32.((p .- minimum(p)) ./ (maximum(p)-minimum(p))))) for m in spectrogram_markers]
     # specX = [(p=m; Gray.(Float32.(p))) for m in spectrogram_markers]
     tree = NearestNeighbors.KDTree([X'; Y'])
     scene = Makie.Scene(resolution=(1600, 1000))
-    for inds in Iterators.partition(1:length(X), 400)
+    for inds in Iterators.partition(1:length(X), partition_size)
         Makie.scatter!(scene, X[inds],Y[inds]; marker=specX[inds], kwargs...)
     end
     Observables.on(scene.events.mousebuttons) do val
