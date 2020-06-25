@@ -1,4 +1,3 @@
-[![Build Status](https://travis-ci.org/baggepinnen/AudioClustering.jl.svg?branch=master)](https://travis-ci.org/baggepinnen/AudioClustering.jl)
 [![docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://baggepinnen.github.io/SpectralDistances.jl/latest)
 
 # AudioClustering
@@ -62,12 +61,14 @@ See docs entry [Clustering using features](https://baggepinnen.github.io/Spectra
 
 ## Accelerated k-nearest neighbor
 ```julia
-inds, dists, D = knn_accelerated(d, X, k, Xe=X; kwargs...)
+inds, dists, D = knn_accelerated(dist, X, k, Xe=X; kwargs...)
 ```
 
-Find the nearest neighbor using distance `d` by first finding the `k` nearest neighbors using Euclidean distance on embeddings produced from `Xe`, and then using `d` do find the smallest distance within those `k`.
+Find the nearest neighbor from using distance metric `dist` by first finding the `k` nearest neighbors using Euclidean distance on embeddings produced from `Xe`, and then using `dist` do find the smallest distance within those `k`.
 
-`D` is a sparse matrix with all the computed distances from `d`. This matrix contains raw distance measurements, to symmetrize, call `SpectralDistances.symmetrize!(D)`. The returned `dists` are already symmetrized.
+`X` is assumed to be a vector of something `dist` can operate on, such as a vector of models from SpectralDistances. `Xe` is by default the same as `X`, or possibly something else, as long as `embeddings(Xe)` is defined. A vector of models or spectrograms has this function defined.
+
+`D` is a sparse matrix with all the computed distances from `dist`. This matrix contains raw distance measurements, to symmetrize, call `SpectralDistances.symmetrize!(D)`. The returned `dists` are already symmetrized.
 
 <!-- ## Low-rank model
 To derive some insights into the data, we may attempt to fit a low-rank model. I have chosen some (hopefully) resonable defaults in the function `lowrankmodel`, but more control can always be recovered by using [LowRankModels.jl](https://github.com/madeleineudell/LowRankModels.jl) directly.
