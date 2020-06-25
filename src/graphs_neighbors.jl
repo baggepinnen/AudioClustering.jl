@@ -106,9 +106,9 @@ end
 
 
 """
-    inds, dists, D = knn_accelerated(d, X, k; kwargs...)
+    inds, dists, D = knn_accelerated(d, X, k, Xe=X; kwargs...)
 
-Find the nearest neighbor using distance `d` by first finding the `k` nearest neighbors using Euclidean distance, and then using `d` do find the smallest distance within those `k`.
+Find the nearest neighbor using distance `d` by first finding the `k` nearest neighbors using Euclidean distance on embeddings Xe, and then using `d` do find the smallest distance within those `k`.
 
 `D` is a sparse matrix with all the computed distances from `d`. This matrix contains raw distance measurements, to symmetrize, call `SpectralDistances.symmetrize!(D)`.
 The returned `dists` are already symmetrized.

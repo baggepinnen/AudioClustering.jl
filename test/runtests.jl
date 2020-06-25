@@ -23,61 +23,63 @@ using SpectralDistances, Random, DSP
         @test length(inds[1]) == 5
         @test length(dists[1]) == 5
 
-
-
     end
 
-    @testset "Lowrank" begin
-        @info "Testing Lowrank"
 
+    models = examplemodels(10)
+    X = Xeddings(models)
+    @test size(emb, 2) == 10
 
-        Random.seed!(1)
-        N_clusters = 5
-        N_signals = 50
+    inds, dists = knn(X, 3)
+    @test length(inds) == 10
+    @test length(inds[1]) == 3
 
-        signals = map(1:N_clusters) do i
-            passband = sort(0.5rand(2))
-            signals = map(1:N_signals) do s
-                SpectralDistances.bp_filter(randn(500), passband)
-            end
-
-        end
-
-        perm = randperm(sum(length, signals))
-        assi = repeat((1:N_clusters)', N_signals)[perm]
-        allsounds = reduce(vcat, signals)[perm]
-
-        na = 8
-        fitmethod = TLS(na=na)
-        # fitmethod = PLR(na=na, nc=1, initial=TLS(na=20))
-        @time models = tmap(allsounds) do sound
-            fitmodel(fitmethod, sound)
-        end
-
-        X = embeddings(models)
-
-        @test size(X) == (na, length(allsounds))
-
-        k = size(X,1)-2
-        U,V,ch = lowrankmodel(X, k; λ=0.00001)
-
-        @test size(U) == (k,size(X,1))
-        @test size(V) == (k,size(X,2))
-
-        @test mean(abs2, U'V - X) / mean(abs2, X) < 1e-5
-
-        # heatmap(U)
-        # heatmap(V)
-        # I = sortperm(V[2,:])
-        # heatmap(V[:,I])
-
-
-        g = audiograph(V, N_clusters)
-        # heatmap(g.weights)
-
-
-
-    end
+    # @testset "Lowrank" begin
+    #     @info "Testing Lowrank"
+    #
+    #     Random.seed!(1)
+    #     N_clusters = 5
+    #     N_signals = 50
+    #
+    #     signals = map(1:N_clusters) do i
+    #         passband = sort(0.5rand(2))
+    #         signals = map(1:N_signals) do s
+    #             SpectralDistances.bp_filter(randn(500), passband)
+    #         end
+    #
+    #     end
+    #
+    #     perm = randperm(sum(length, signals))
+    #     assi = repeat((1:N_clusters)', N_signals)[perm]
+    #     allsounds = reduce(vcat, signals)[perm]
+    #
+    #     na = 8
+    #     fitmethod = TLS(na=na)
+    #     # fitmethod = PLR(na=na, nc=1, initial=TLS(na=20))
+    #     @time models = tmap(allsounds) do sound
+    #         fitmodel(fitmethod, sound)
+    #     end
+    #
+    #     X = embeddings(models)
+    #
+    #     @test size(X) == (na, length(allsounds))
+    #
+    #     k = size(X,1)-2
+    #     U,V,ch = lowrankmodel(X, k; λ=0.00001)
+    #
+    #     @test size(U) == (k,size(X,1))
+    #     @test size(V) == (k,size(X,2))
+    #
+    #     @test mean(abs2, U'V - X) / mean(abs2, X) < 1e-5
+    #
+    #     # heatmap(U)
+    #     # heatmap(V)
+    #     # I = sortperm(V[2,:])
+    #     # heatmap(V[:,I])
+    #
+    #     g = audiograph(V, N_clusters)
+    #     # heatmap(g.weights)
+    # end
 
 
 

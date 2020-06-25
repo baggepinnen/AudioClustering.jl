@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/baggepinnen/AudioClustering.jl.svg?branch=master)](https://travis-ci.org/baggepinnen/AudioClustering.jl)
-[![codecov](https://codecov.io/gh/baggepinnen/AudioClustering.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/baggepinnen/AudioClustering.jl)
+[![docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://baggepinnen.github.io/SpectralDistances.jl/latest)
 
 # AudioClustering
 This package contains experiments and utilities for unsupervised learning on acoustic recordings. This package is a use case of [SpectralDistances.jl](https://github.com/baggepinnen/SpectralDistances.jl)
@@ -52,6 +52,22 @@ Here, the Euclidean distance will be used to select neighbors, but the edges wil
 
 Any graph-based algorithm may now operate on `G`, or on the field `G.weight`. Further examples are available [here](https://baggepinnen.github.io/SpectralDistances.jl/latest/examples/#Pairwise-distance-matrix-1).
 
+
+## Distance matrix-based clustering
+See docs entry [Clustering using a distance matrix](https://baggepinnen.github.io/SpectralDistances.jl/latest/taskview/#Clustering-using-a-distance-matrix-1)
+
+## Feature-based clustering
+See docs entry [Clustering using features](https://baggepinnen.github.io/SpectralDistances.jl/latest/taskview/#Clustering-using-features-1)
+
+
+## Accelerated k-nearest neighbor
+```julia
+inds, dists, D = knn_accelerated(d, X, k, Xe=X; kwargs...)
+```
+
+Find the nearest neighbor using distance `d` by first finding the `k` nearest neighbors using Euclidean distance on embeddings produced from `Xe`, and then using `d` do find the smallest distance within those `k`.
+
+`D` is a sparse matrix with all the computed distances from `d`. This matrix contains raw distance measurements, to symmetrize, call `SpectralDistances.symmetrize!(D)`. The returned `dists` are already symmetrized.
 
 <!-- ## Low-rank model
 To derive some insights into the data, we may attempt to fit a low-rank model. I have chosen some (hopefully) resonable defaults in the function `lowrankmodel`, but more control can always be recovered by using [LowRankModels.jl](https://github.com/madeleineudell/LowRankModels.jl) directly.
