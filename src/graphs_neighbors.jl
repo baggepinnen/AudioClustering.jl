@@ -119,13 +119,15 @@ The returned `dists` are already symmetrized.
 - `k`: number of Euclidean nearest neighbors to consider. The computational cost scales linearly with `k`
 - `kwargs`: are sent to `evaluate`
 """
-function knn_accelerated(d, X::Vector{<:AbstractVecOrMat}, k; kwargs...)
+function knn_accelerated(d, X::AbstractVector, k, xe=X; kwargs...)
 
+    GC.gc()
     N = length(X)
-    XE = reduce(hcat, vec.(X))
+    XE = embeddings(xe)
     m,N = size(XE)
-    inds, _ = knn(XE, k, true)
-
+    @info "Size of embedding: " (m,N)
+    inds, _ = knn(XE, k+1, true)
+    GC.gc()
 
     # if m > 1000 || N < 5000
     #     verbose && @info "Computing NN using distance matrix"
@@ -143,24 +145,32 @@ function knn_accelerated(d, X::Vector{<:AbstractVecOrMat}, k; kwargs...)
     #     inds, dists = getindex.(inds, 1), getindex.(dists, 1)
     # end
 
-    dists = [deepcopy(d) for _ in 1:Threads.nthreads()]
+    dists = [deepcopy(d) for _ in 1:nthreads()]
 
+    prog = Progress(N, 1, "Calculating diagonal")
     DD = tmap(1:N) do i
-        evaluate(dists[Threads.threadid()], X[i], X[i]; kwargs...)
+        val = evaluate(dists[threadid()], X[i], X[i]; kwargs...)
+        next!(prog)
+        val
     end
     D = spdiagm(0 => DD)
     l = ReentrantLock()
-    tmap(eachindex(inds)) do i
-        for j in inds[i]
-            j == i && continue
-            dij = evaluate(dists[Threads.threadid()], X[i], X[j]; kwargs...)
+    GC.gc()
+
+    prog = Progress(length(inds), 1, "Calculating neighbors")
+    # tmap(nthreads(), eachindex(inds)) do i
+    @threads for i in eachindex(inds)
+        for j in @views(inds[i][2:end])
+            @assert j != i "This should not occur"
+            dij = evaluate(dists[threadid()], X[i], X[j]; kwargs...)
             lock(l) do
                 D[i,j] = dij
                 D[j,i] = dij
             end
         end
-        nothing
+        next!(prog)
     end
+    GC.gc()
 
     D2 = symmetrize!(deepcopy(D))
     offset = 1.1*maximum(D2)
@@ -193,7 +203,7 @@ function mutual_neighbors(Xi; verbose=true, kwargs...)
         inds, dists = knn(X, 2, true) # TODO: this takes forever for large representations
         inds, dists = getindex.(inds, 2), getindex.(dists, 2)
     end
-    # workspaces = [SCWorkspace(X[1], X[1], d.β) for _ in 1:Threads.nthreads()]
+    # workspaces = [SCWorkspace(X[1], X[1], d.β) for _ in 1:nthreads()]
 
     ordered_tuple(a,b) = a < b ? (a,b) : (b,a)
     mutual_neighbors = Set{Tuple{Int,Int}}()
@@ -241,7 +251,7 @@ end
 #     end
 # end
 
-# 
+#
 # function WL_costfun(d,X,λ; kwargs...)
 #     λ2 = softmax.(eachcol(λ))
 #     B = map(enumerate(λ2)) do (i,λi)

@@ -14,6 +14,7 @@ using DocStringExtensions
 using LinearAlgebra, Statistics, Base.Threads, Printf
 using DelimitedFiles, Reexport, ThreadTools, Lazy
 using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, Hungarian
+using ProgressMeter
 
 using Optim
 
@@ -63,13 +64,15 @@ function embeddings(models::AbstractVector{<:AbstractModel})
         X0 = reduce(hcat, emb)
         X = Float64.([real(X0[1:end÷2,:]); imag(X0[1:end÷2,:])])
     else
-        emb = ContinuousRoots.(roots.(Ref(Discrete()), models))
+        emb = roots.(Ref(Continuous()), models)
         X0 = reduce(hcat, emb)
         X = Float64.([real(X0[1:end÷2+1,:]); imag(X0[1:end÷2+1,:])])
     end
 end
 
-
+# Useful for spectrograms etc.
+embeddings(X::AbstractVector{<:AbstractArray}) = reduce(hcat, vec.(X))
+embeddings(X::AbstractVector{<:SpectralDistances.DSP.Periodograms.TFR}) = reduce(hcat, vec.(power.(X)))
 
 function invembeddings(embeddings::AbstractMatrix)
     map(invembedding, eachcol(embeddings))
