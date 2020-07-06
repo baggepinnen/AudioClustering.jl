@@ -15,15 +15,14 @@ using LinearAlgebra, Statistics, Base.Threads, Printf
 using DelimitedFiles, Reexport, ThreadTools, Lazy
 using NearestNeighbors, Arpack, LightGraphs, SimpleWeightedGraphs, Hungarian
 using ProgressMeter
-
+using SlidingDistancesBase
 using Optim
-
 using AbstractTrees
 
 
 export mapsoundfiles, audiograph, model2file, save_interesting, embeddings, invembeddings, invembedding, associate_clusters, distmat2similarity, distmat2nn_graph, knn, knn_accelerated
 export interactive_heatmap
-export calc_N_random!, initialize_clusters, crop_time
+export calc_N_random!, initialize_clusters, crop_time, pattern_classify
 
 @reexport using DetectionIoTools
 @reexport using DSP

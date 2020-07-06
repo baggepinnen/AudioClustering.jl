@@ -266,3 +266,22 @@ end
 #     B = X[randperm(N)[1:k]]
 #
 # end
+
+
+function pattern_classify(dist, patterns, X; kwargs...)
+    N      = length(X)
+    labels = Vector{Int}(undef, N)
+    D      = zeros(length(patterns), N)
+    dists  = [deepcopy(dist) for _ in 1:nthreads()]
+    prog   = Progress(N, 1, "Classifying")
+    @threads for i in eachindex(X)
+        di = @view(D[:,i])
+        map!(di, patterns) do p
+            # NOTE: If using ZNormalizer, one must take care of un-equal lengths as ZNorm divides by the length. If using NormNormalizer, this is no longer a problem as all windows will have the same "√energy"
+            evaluate(dists[threadid()], X[i], p; kwargs...)
+        end
+        labels[i] = argmin(di)
+        next!(prog)
+    end
+    labels, D
+end
