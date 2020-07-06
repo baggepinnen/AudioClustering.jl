@@ -23,6 +23,7 @@ using AbstractTrees
 
 export mapsoundfiles, audiograph, model2file, save_interesting, embeddings, invembeddings, invembedding, associate_clusters, distmat2similarity, distmat2nn_graph, knn, knn_accelerated
 export interactive_heatmap
+export calc_N_random!, initialize_clusters, crop_time
 
 @reexport using DetectionIoTools
 @reexport using DSP
@@ -51,6 +52,7 @@ export interactive_heatmap
 
 
 include("graphs_neighbors.jl")
+include("initialize_clusters.jl")
 include("plotting.jl")
 
 """
@@ -233,7 +235,7 @@ end
 
 
 
-include("lowrank.jl")
+# include("lowrank.jl")
 
 
 end # module

@@ -38,6 +38,9 @@ We now have some audio data, represented as poles of rational spectra, in a matr
 
 
 ## Graph-based clustering
+
+### Model based
+
 A graph representation of `X` can be obtained with
 ```julia
 G = audiograph(X, 5; λ=0)
@@ -50,6 +53,40 @@ G = audiograph(X, 5, dist; λ=0)
 Here, the Euclidean distance will be used to select neighbors, but the edges will be weighted using the provided distance. This avoids having to calculate a very large number of pairwise distances using the more expensive distance metric.
 
 Any graph-based algorithm may now operate on `G`, or on the field `G.weight`. Further examples are available [here](https://baggepinnen.github.io/SpectralDistances.jl/latest/examples/#Pairwise-distance-matrix-1).
+
+### Spectrogram based
+
+The following snippets show how to preprocess data to a suitable form for clustering using this package:
+
+```julia
+using GLob
+files = glob("*.wav") # Vector of file paths
+const fs = Int(wavread(files[1])[2]) # Rread the sampling time
+N = length(files)
+
+using TotalLeastSquares # For lowrankfilter
+function lrfilt(y)
+    yf = lowrankfilter(y, min(250, length(y)-1100), lag=10)
+end
+
+"Perform some simple threshold filtering and calculate a spectrogram"
+function spec(sound)
+    @. sound = Float32(100000 * clamp(sound, -0.015f0, 0.015f0)) # the 100000 multiplier is to normalize the Float32 data for better numerical performance. Tune all parameters to you use case.
+    # sound = lrfilt(sound) # This is an alternative to the above which is *much* better, but also much slower
+    melspectrogram(sound, 100, 70, nmels=30, fs=fs, fmin=5)      # Spend some time making sure spectrogram representation is good.
+end
+
+using ThreadTools # For tmap
+spectrograms = tmap(files) do file
+    sound = spec(vec(wavread(file)[1]))
+end
+
+matrices = [Float32.(max.(normalize_spectrogram(s), 1e-7)) for s in spectrograms]
+# matrices_masked = mask_filter.(matrices) # This is an alternative if the lowrankfilter is not used https://baggepinnen.github.io/SpectralDistances.jl/latest/distances/#SpectralDistances.mask_filter
+
+inds, D = initialize_clusters(dist, matrices; init_multiplier = 10, N_seeds = 100)
+patterns = matrices[inds] # These should be good cluster seeds
+```
 
 
 ## Distance matrix-based clustering
