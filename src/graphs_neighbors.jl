@@ -223,7 +223,7 @@ function mutual_neighbors(Xi; verbose=true, kwargs...)
 end
 
 function reduce_dataset(d, X; verbose = true, recursive = 0, kwargs...)
-    @show mn = mutual_neighbors(X; verbose)
+    @show mn = mutual_neighbors(X; verbose = verbose)
     isempty(mn) && return X
     B = tmap(mn) do (i,j)
         barycenter(d, [X[i], X[j]]; kwargs...)
@@ -232,7 +232,7 @@ function reduce_dataset(d, X; verbose = true, recursive = 0, kwargs...)
     X2 = copy(X)
     X2 = deleteat!(X2, sort(reduced))
     if recursive > 0
-        return [reduce_dataset(d, X2; verbose, recursive = recursive-1, kwargs...); B]
+        return [reduce_dataset(d, X2; verbose = verbose, recursive = recursive-1, kwargs...); B]
     end
     return [X2; B]
 end
