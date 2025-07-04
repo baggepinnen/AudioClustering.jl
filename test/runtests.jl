@@ -27,8 +27,8 @@ using SpectralDistances, Random, DSP
 
 
     models = examplemodels(10)
-    X = Xeddings(models)
-    @test size(emb, 2) == 10
+    X = embeddings(models)
+    @test size(X, 2) == 10
 
     inds, dists = knn(X, 3)
     @test length(inds) == 10
